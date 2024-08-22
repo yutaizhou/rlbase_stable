@@ -19,11 +19,14 @@ from dataclasses import field
 #
 ###############################
 
+
 def mish(x):
     return x * jnp.tanh(nn.softplus(x))
 
+
 def default_init(scale: Optional[float] = 1.0):
     return nn.initializers.variance_scaling(scale, "fan_avg", "uniform")
+
 
 class MLP(nn.Module):
     hidden_dims: Sequence[int]
@@ -49,7 +52,7 @@ class MLP(nn.Module):
                 raise ValueError(f"Activation {self.activation} not found in flax.nn")
         else:
             activation = self.activation
-    
+
         for i, layer in enumerate(self.layers):
             x = layer(x)
             if i + 1 < len(self.layers) and self.use_layer_norm:
@@ -57,13 +60,15 @@ class MLP(nn.Module):
             if i + 1 < len(self.layers) or self.activate_final:
                 x = activation(x)
         return x
-    
+
+
 class IdentityLayer(nn.Module):
     """Identity layer, convenient for giving a name to an array."""
 
     @nn.compact
     def __call__(self, x):
         return x
+
 
 ###############################
 #
@@ -80,9 +85,8 @@ class DiscreteCritic(nn.Module):
 
     @nn.compact
     def __call__(self, observations: jnp.ndarray) -> jnp.ndarray:
-        return MLP((*self.hidden_dims, self.n_actions), **self.mlp_kwargs)(
-            observations
-        )
+        return MLP((*self.hidden_dims, self.n_actions), **self.mlp_kwargs)(observations)
+
 
 # Q(s,a) critic.
 class Critic(nn.Module):
@@ -95,6 +99,7 @@ class Critic(nn.Module):
         critic = MLP((*self.hidden_dims, 1), **self.mlp_kwargs)(inputs)
         return jnp.squeeze(critic, -1)
 
+
 # V(s) critic.
 class ValueCritic(nn.Module):
     hidden_dims: Sequence[int]
@@ -104,6 +109,7 @@ class ValueCritic(nn.Module):
     def __call__(self, observations: jnp.ndarray) -> jnp.ndarray:
         critic = MLP((*self.hidden_dims, 1), **self.mlp_kwargs)(observations)
         return jnp.squeeze(critic, -1)
+
 
 # pi(a|s). Returns a distrax distribution.
 class Policy(nn.Module):
@@ -125,31 +131,40 @@ class Policy(nn.Module):
     def __call__(
         self, observations: jnp.ndarray, temperature: float = 1.0
     ) -> distrax.Distribution:
-        outputs = MLP(
-            self.hidden_dims,
-            activate_final=True,
-            **self.mlp_kwargs
-        )(observations)
+        outputs = MLP(self.hidden_dims, activate_final=True, **self.mlp_kwargs)(
+            observations
+        )
 
         if self.is_discrete:
             logits = nn.Dense(
-                self.action_dim, kernel_init=default_init(self.final_fc_init_scale)
+                self.action_dim,
+                kernel_init=default_init(self.final_fc_init_scale),
             )(outputs)
-            distribution = distrax.Categorical(logits=logits / jnp.maximum(1e-6, temperature))
+            distribution = distrax.Categorical(
+                logits=logits / jnp.maximum(1e-6, temperature)
+            )
         else:
             means = nn.Dense(
-                self.action_dim, kernel_init=default_init(self.final_fc_init_scale)
+                self.action_dim,
+                kernel_init=default_init(self.final_fc_init_scale),
             )(outputs)
             if self.state_dependent_std:
                 log_stds = nn.Dense(
-                    self.action_dim, kernel_init=default_init(self.final_fc_init_scale)
+                    self.action_dim,
+                    kernel_init=default_init(self.final_fc_init_scale),
                 )(outputs)
             else:
                 if self.fixed_std is not None:
-                    log_stds = self.param("log_stds", nn.initializers.constant(jnp.log(self.fixed_std)), (self.action_dim,))
+                    log_stds = self.param(
+                        "log_stds",
+                        nn.initializers.constant(jnp.log(self.fixed_std)),
+                        (self.action_dim,),
+                    )
                     log_stds = jax.lax.stop_gradient(log_stds)
                 else:
-                    log_stds = self.param("log_stds", nn.initializers.zeros, (self.action_dim,))
+                    log_stds = self.param(
+                        "log_stds", nn.initializers.zeros, (self.action_dim,)
+                    )
 
             log_stds = jnp.clip(log_stds, self.log_std_min, self.log_std_max)
             means = jnp.clip(means, self.mean_min, self.mean_max)
@@ -162,17 +177,20 @@ class Policy(nn.Module):
                     distribution, distrax.Block(distrax.Tanh(), ndims=1)
                 )
         return distribution
-    
+
+
 ###############################
 #
 #   Helper Things
 #
 ###############################
 
+
 class TransformedWithMode(distrax.Transformed):
     def mode(self) -> jnp.ndarray:
         return self.bijector.forward(self.distribution.mode())
-    
+
+
 def ensemblize(cls, num_qs, out_axes=0, **kwargs):
     """
     Useful for making ensembles of Q functions (e.g. double Q in SAC).
@@ -189,5 +207,5 @@ def ensemblize(cls, num_qs, out_axes=0, **kwargs):
         in_axes=None,
         out_axes=out_axes,
         axis_size=num_qs,
-        **kwargs
+        **kwargs,
     )

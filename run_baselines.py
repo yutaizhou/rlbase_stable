@@ -1,7 +1,27 @@
 job_list = []
-project = 'rlbase_baselines'
-online_envs = ['HalfCheetah-v2', 'Walker2d-v2', 'Pendulum-v1', 'MountainCarContinuous-v0', 'walker_walk', 'cheetah_run', 'humanoid_run', 'quadruped_run', 'pointmass_easy']
-offline_envs = ['antmaze-large-diverse-v2', 'maze2d-large-v1', 'gc-maze2d-large-v1', 'gc-antmaze-large-diverse-v2', 'halfcheetah-medium-expert-v2', 'walker2d-medium-expert-v2', 'hopper-medium-expert-v2', 'exorl_walker_run', 'exorl_cheetah_run']
+project = "rlbase_baselines"
+online_envs = [
+    "HalfCheetah-v2",
+    "Walker2d-v2",
+    "Pendulum-v1",
+    "MountainCarContinuous-v0",
+    "walker_walk",
+    "cheetah_run",
+    "humanoid_run",
+    "quadruped_run",
+    "pointmass_easy",
+]
+offline_envs = [
+    "antmaze-large-diverse-v2",
+    "maze2d-large-v1",
+    "gc-maze2d-large-v1",
+    "gc-antmaze-large-diverse-v2",
+    "halfcheetah-medium-expert-v2",
+    "walker2d-medium-expert-v2",
+    "hopper-medium-expert-v2",
+    "exorl_walker_run",
+    "exorl_cheetah_run",
+]
 
 # SAC
 for seed in range(4):
@@ -42,9 +62,9 @@ for seed in range(4):
     base = f"python algs_offline/iql.py --wandb.project {project} --wandb.group IQL --seed {seed} "
     for env in offline_envs:
         base += f"--env_name {env}"
-        if 'gc' in env:
+        if "gc" in env:
             base += " --goal_conditioned 1"
-        if 'exorl' in env:
+        if "exorl" in env:
             base += " --agent.actor_loss_type ddpg"
         job_list.append(base)
 
@@ -53,7 +73,7 @@ for seed in range(4):
     base = f"python algs_offline/bc.py --wandb.project {project} --wandb.group BC --seed {seed} "
     for env in offline_envs:
         base += f"--env_name {env}"
-        if 'gc' in env:
+        if "gc" in env:
             base += " --goal_conditioned 1"
         job_list.append(base)
 

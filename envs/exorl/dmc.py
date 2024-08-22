@@ -14,6 +14,7 @@ import numpy as np
 S = tp.TypeVar("S", bound="TimeStep")
 Env = tp.Union["EnvWrapper", Environment]
 
+
 @dataclasses.dataclass
 class TimeStep:
     step_type: StepType
@@ -49,7 +50,9 @@ class EnvWrapper:
     def __init__(self, env: Env) -> None:
         self._env = env
 
-    def _augment_time_step(self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None) -> TimeStep:
+    def _augment_time_step(
+        self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None
+    ) -> TimeStep:
         if not isinstance(time_step, TimeStep):
             # dm_env time step is a named tuple
             time_step = TimeStep(**time_step._asdict())
@@ -97,45 +100,55 @@ class FlattenJacoObservationWrapper(EnvWrapper):
         super().__init__(env)
         self._obs_spec = OrderedDict()
         wrapped_obs_spec = env.observation_spec().copy()
-        if 'front_close' in wrapped_obs_spec:
-            spec = wrapped_obs_spec['front_close']
+        if "front_close" in wrapped_obs_spec:
+            spec = wrapped_obs_spec["front_close"]
             # drop batch dim
-            self._obs_spec['pixels'] = specs.BoundedArray(shape=spec.shape[1:],
-                                                          dtype=spec.dtype,
-                                                          minimum=spec.minimum,
-                                                          maximum=spec.maximum,
-                                                          name='pixels')
-            wrapped_obs_spec.pop('front_close')
+            self._obs_spec["pixels"] = specs.BoundedArray(
+                shape=spec.shape[1:],
+                dtype=spec.dtype,
+                minimum=spec.minimum,
+                maximum=spec.maximum,
+                name="pixels",
+            )
+            wrapped_obs_spec.pop("front_close")
 
         for spec in wrapped_obs_spec.values():
             assert spec.dtype == np.float64
             assert type(spec) == specs.Array
         dim = np.sum(
-            np.fromiter((int(np.prod(spec.shape))  # type: ignore
-                         for spec in wrapped_obs_spec.values()), np.int32))
+            np.fromiter(
+                (
+                    int(np.prod(spec.shape))  # type: ignore
+                    for spec in wrapped_obs_spec.values()
+                ),
+                np.int32,
+            )
+        )
 
-        self._obs_spec['observations'] = specs.Array(shape=(dim,),
-                                                     dtype=np.float32,
-                                                     name='observations')
+        self._obs_spec["observations"] = specs.Array(
+            shape=(dim,), dtype=np.float32, name="observations"
+        )
 
     def observation_spec(self) -> tp.Any:
         return self._obs_spec
 
-    def _augment_time_step(self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None) -> TimeStep:
+    def _augment_time_step(
+        self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None
+    ) -> TimeStep:
         super()._augment_time_step(time_step=time_step, action=action)
         obs = OrderedDict()
 
         # TODO: this is badly typed since observation is a dict in this case
-        if 'front_close' in time_step.observation:
-            pixels = time_step.observation['front_close']
-            time_step.observation.pop('front_close')  # type: ignore
+        if "front_close" in time_step.observation:
+            pixels = time_step.observation["front_close"]
+            time_step.observation.pop("front_close")  # type: ignore
             pixels = np.squeeze(pixels)
-            obs['pixels'] = pixels
+            obs["pixels"] = pixels
 
         features = []
         for feature in time_step.observation.values():  # type: ignore
             features.append(feature.ravel())
-        obs['observations'] = np.concatenate(features, axis=0)
+        obs["observations"] = np.concatenate(features, axis=0)
         return time_step._replace(observation=obs)
 
 
@@ -158,7 +171,7 @@ class ActionRepeatWrapper(EnvWrapper):
 
 
 class FrameStackWrapper(EnvWrapper):
-    def __init__(self, env: Env, num_frames: int, pixels_key: str = 'pixels') -> None:
+    def __init__(self, env: Env, num_frames: int, pixels_key: str = "pixels") -> None:
         super().__init__(env)
         self._num_frames = num_frames
         self._frames: tp.Deque[np.ndarray] = deque([], maxlen=num_frames)
@@ -171,14 +184,19 @@ class FrameStackWrapper(EnvWrapper):
         # remove batch dim
         if len(pixels_shape) == 4:
             pixels_shape = pixels_shape[1:]
-        self._obs_spec = specs.BoundedArray(shape=np.concatenate(
-            [[pixels_shape[2] * num_frames], pixels_shape[:2]], axis=0),
+        self._obs_spec = specs.BoundedArray(
+            shape=np.concatenate(
+                [[pixels_shape[2] * num_frames], pixels_shape[:2]], axis=0
+            ),
             dtype=np.uint8,
             minimum=0,
             maximum=255,
-            name='observation')
+            name="observation",
+        )
 
-    def _augment_time_step(self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None) -> TimeStep:
+    def _augment_time_step(
+        self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None
+    ) -> TimeStep:
         super()._augment_time_step(time_step=time_step, action=action)
         assert len(self._frames) == self._num_frames
         obs = np.concatenate(list(self._frames), axis=0)
@@ -209,11 +227,13 @@ class ActionDTypeWrapper(EnvWrapper):
     def __init__(self, env: Env, dtype) -> None:
         super().__init__(env)
         wrapped_action_spec = env.action_spec()
-        self._action_spec = specs.BoundedArray(wrapped_action_spec.shape,
-                                               dtype,
-                                               wrapped_action_spec.minimum,
-                                               wrapped_action_spec.maximum,
-                                               'action')
+        self._action_spec = specs.BoundedArray(
+            wrapped_action_spec.shape,
+            dtype,
+            wrapped_action_spec.minimum,
+            wrapped_action_spec.maximum,
+            "action",
+        )
 
     def action_spec(self) -> specs.BoundedArray:
         return self._action_spec
@@ -227,12 +247,13 @@ class ObservationDTypeWrapper(EnvWrapper):
     def __init__(self, env: Env, dtype) -> None:
         super().__init__(env)
         self._dtype = dtype
-        wrapped_obs_spec = env.observation_spec()['observations']
-        self._obs_spec = specs.Array(wrapped_obs_spec.shape, dtype,
-                                     'observation')
+        wrapped_obs_spec = env.observation_spec()["observations"]
+        self._obs_spec = specs.Array(wrapped_obs_spec.shape, dtype, "observation")
 
-    def _augment_time_step(self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None) -> TimeStep:
-        obs = time_step.observation['observations'].astype(self._dtype)
+    def _augment_time_step(
+        self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None
+    ) -> TimeStep:
+        obs = time_step.observation["observations"].astype(self._dtype)
         return time_step._replace(observation=obs)
 
     def observation_spec(self) -> Any:
@@ -240,20 +261,25 @@ class ObservationDTypeWrapper(EnvWrapper):
 
 
 class ExtendedTimeStepWrapper(EnvWrapper):
-
-    def _augment_time_step(self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None) -> TimeStep:
+    def _augment_time_step(
+        self, time_step: TimeStep, action: tp.Optional[np.ndarray] = None
+    ) -> TimeStep:
         if action is None:
             action_spec = self.action_spec()
             action = np.zeros(action_spec.shape, dtype=action_spec.dtype)
-        ts = ExtendedTimeStep(observation=time_step.observation,
-                              step_type=time_step.step_type,
-                              action=action,
-                              reward=time_step.reward or 0.0,
-                              discount=time_step.discount or 1.0)
+        ts = ExtendedTimeStep(
+            observation=time_step.observation,
+            step_type=time_step.step_type,
+            action=action,
+            reward=time_step.reward or 0.0,
+            discount=time_step.discount or 1.0,
+        )
         return super()._augment_time_step(time_step=ts, action=action)
 
 
-def _make_jaco(obs_type, domain, task, frame_stack, action_repeat, seed) -> FlattenJacoObservationWrapper:
+def _make_jaco(
+    obs_type, domain, task, frame_stack, action_repeat, seed
+) -> FlattenJacoObservationWrapper:
     env = cdmc.make_jaco(task, obs_type, seed)
     env = ActionDTypeWrapper(env, np.float32)
     env = ActionRepeatWrapper(env, action_repeat)
@@ -264,45 +290,50 @@ def _make_jaco(obs_type, domain, task, frame_stack, action_repeat, seed) -> Flat
 def _make_dmc(obs_type, domain, task, frame_stack, action_repeat, seed):
     visualize_reward = False
     if (domain, task) in suite.ALL_TASKS:
-        env = suite.load(domain,
-                         task,
-                         task_kwargs=dict(random=seed),
-                         environment_kwargs=dict(flat_observation=True),
-                         visualize_reward=visualize_reward)
+        env = suite.load(
+            domain,
+            task,
+            task_kwargs=dict(random=seed),
+            environment_kwargs=dict(flat_observation=True),
+            visualize_reward=visualize_reward,
+        )
     else:
-        env = cdmc.make(domain,
-                        task,
-                        task_kwargs=dict(random=seed),
-                        environment_kwargs=dict(flat_observation=True),
-                        visualize_reward=visualize_reward)
+        env = cdmc.make(
+            domain,
+            task,
+            task_kwargs=dict(random=seed),
+            environment_kwargs=dict(flat_observation=True),
+            visualize_reward=visualize_reward,
+        )
     env = ActionDTypeWrapper(env, np.float32)
     env = ActionRepeatWrapper(env, action_repeat)
-    if obs_type == 'pixels':
+    if obs_type == "pixels":
         # zoom in camera for quadruped
         camera_id = dict(quadruped=2).get(domain, 0)
         render_kwargs = dict(height=84, width=84, camera_id=camera_id)
-        env = pixels.Wrapper(env,
-                             pixels_only=True,
-                             render_kwargs=render_kwargs)
+        env = pixels.Wrapper(env, pixels_only=True, render_kwargs=render_kwargs)
     return env
 
 
 def make(
-    name: str, obs_type='states', frame_stack=1, action_repeat=1,
+    name: str,
+    obs_type="states",
+    frame_stack=1,
+    action_repeat=1,
     seed=1,
 ) -> EnvWrapper:
-    assert obs_type in ['states', 'pixels']
-    if name.startswith('point_mass_maze'):
-        domain = 'point_mass_maze'
-        _, _, _, task = name.split('_', 3)
+    assert obs_type in ["states", "pixels"]
+    if name.startswith("point_mass_maze"):
+        domain = "point_mass_maze"
+        _, _, _, task = name.split("_", 3)
     else:
-        domain, task = name.split('_', 1)
-    domain = dict(cup='ball_in_cup').get(domain, domain)
+        domain, task = name.split("_", 1)
+    domain = dict(cup="ball_in_cup").get(domain, domain)
 
-    make_fn = _make_jaco if domain == 'jaco' else _make_dmc
+    make_fn = _make_jaco if domain == "jaco" else _make_dmc
     env = make_fn(obs_type, domain, task, frame_stack, action_repeat, seed)
 
-    if obs_type == 'pixels':
+    if obs_type == "pixels":
         env = FrameStackWrapper(env, frame_stack)
     else:
         env = ObservationDTypeWrapper(env, np.float32)
@@ -315,7 +346,12 @@ def make(
 def extract_physics(env: Env) -> tp.Dict[str, float]:
     """Extract some physics available in the env"""
     output = {}
-    names = ["torso_height", "torso_upright", "horizontal_velocity", "torso_velocity"]
+    names = [
+        "torso_height",
+        "torso_upright",
+        "horizontal_velocity",
+        "torso_velocity",
+    ]
     for name in names:
         if not hasattr(env.physics, name):
             continue
@@ -341,7 +377,9 @@ class FloatStats:
         self.min = min(value, self.min)
         self.max = max(value, self.max)
         self._count += 1
-        self.mean = (self._count - 1) / self._count * self.mean + 1 / self._count * value
+        self.mean = (
+            self._count - 1
+        ) / self._count * self.mean + 1 / self._count * value
         return self
 
     def items(self) -> tp.Iterator[tp.Tuple[str, float]]:
@@ -366,7 +404,7 @@ class PhysicsAggregator:
         """Exports all statistics and reset the statistics"""
         for key, stats in self.stats.items():
             for stat, val in stats.items():
-                yield (f'{key}/{stat}', val)
+                yield (f"{key}/{stat}", val)
         self.stats.clear()
 
 
@@ -402,15 +440,15 @@ def _flatten_obs(obs):
 
 class DMCWrapper(core.Env):
     def __init__(
-            self,
-            env,
-            seed,
-            from_pixels=False,
-            height=84,
-            width=84,
-            camera_id=0,
-            frame_skip=1,
-            channels_first=False,
+        self,
+        env,
+        seed,
+        from_pixels=False,
+        height=84,
+        width=84,
+        camera_id=0,
+        frame_skip=1,
+        channels_first=False,
     ):
         self._from_pixels = from_pixels
         self._height = height
@@ -427,7 +465,7 @@ class DMCWrapper(core.Env):
             low=-1.0,
             high=1.0,
             shape=self._true_action_space.shape,
-            dtype=np.float32
+            dtype=np.float32,
         )
 
         # create observation space
@@ -437,7 +475,9 @@ class DMCWrapper(core.Env):
                 low=0, high=255, shape=shape, dtype=np.uint8
             )
         else:
-            self._observation_space = _spec_to_box([self._env.observation_spec()], np.float32)
+            self._observation_space = _spec_to_box(
+                [self._env.observation_spec()], np.float32
+            )
 
         self._state_space = _spec_to_box([self._env.observation_spec()], np.float32)
 
@@ -453,7 +493,7 @@ class DMCWrapper(core.Env):
             obs = self.render(
                 height=self._height,
                 width=self._width,
-                camera_id=self._camera_id
+                camera_id=self._camera_id,
             )
             if self._channels_first:
                 obs = obs.transpose(2, 0, 1).copy()
@@ -494,7 +534,7 @@ class DMCWrapper(core.Env):
         action = self._convert_action(action)
         assert self._true_action_space.contains(action)
         reward = 0
-        extra = {'internal_state': self._env.physics.get_state().copy()}
+        extra = {"internal_state": self._env.physics.get_state().copy()}
 
         for _ in range(self._frame_skip):
             time_step = self._env.step(action)
@@ -504,7 +544,7 @@ class DMCWrapper(core.Env):
                 break
         obs = self._get_obs(time_step)
         self.current_state = _flatten_obs(time_step.observation)
-        extra['discount'] = time_step.discount
+        extra["discount"] = time_step.discount
         return obs, reward, done, extra
 
     def reset(self):
@@ -513,11 +553,9 @@ class DMCWrapper(core.Env):
         obs = self._get_obs(time_step)
         return obs
 
-    def render(self, mode='rgb_array', height=None, width=None, camera_id=0):
-        assert mode == 'rgb_array', 'only support rgb_array mode, given %s' % mode
+    def render(self, mode="rgb_array", height=None, width=None, camera_id=0):
+        assert mode == "rgb_array", "only support rgb_array mode, given %s" % mode
         height = height or self._height
         width = width or self._width
         camera_id = camera_id or self._camera_id
-        return self._env.physics.render(
-            height=height, width=width, camera_id=camera_id
-        )
+        return self._env.physics.render(height=height, width=width, camera_id=camera_id)

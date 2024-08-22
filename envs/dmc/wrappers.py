@@ -47,9 +47,11 @@ class DMCWrapper(core.Env):
         camera_id=0,
         frame_skip=1,
         environment_kwargs=None,
-        channels_first=False
+        channels_first=False,
     ):
-        assert 'random' in task_kwargs, 'please specify a seed, for deterministic behaviour'
+        assert (
+            "random" in task_kwargs
+        ), "please specify a seed, for deterministic behaviour"
         self._from_pixels = from_pixels
         self._height = height
         self._width = width
@@ -58,16 +60,21 @@ class DMCWrapper(core.Env):
         self._channels_first = channels_first
 
         # create task
-        if domain_name == 'jaco':
+        if domain_name == "jaco":
             import rlbase.common.envs.dmc.jaco as jaco
-            self._env = jaco.make(task_id=task_name, obs_type=jaco.observations.PERFECT_FEATURES, seed=1)
+
+            self._env = jaco.make(
+                task_id=task_name,
+                obs_type=jaco.observations.PERFECT_FEATURES,
+                seed=1,
+            )
         else:
             self._env = suite.load(
                 domain_name=domain_name,
                 task_name=task_name,
                 task_kwargs=task_kwargs,
                 visualize_reward=visualize_reward,
-                environment_kwargs=environment_kwargs
+                environment_kwargs=environment_kwargs,
             )
 
         # true and normalized action spaces
@@ -76,7 +83,7 @@ class DMCWrapper(core.Env):
             low=-1.0,
             high=1.0,
             shape=self._true_action_space.shape,
-            dtype=np.float32
+            dtype=np.float32,
         )
 
         # create observation space
@@ -87,19 +94,17 @@ class DMCWrapper(core.Env):
             )
         else:
             self._observation_space = _spec_to_box(
-                self._env.observation_spec().values(),
-                np.float64
+                self._env.observation_spec().values(), np.float64
             )
-            
+
         self._state_space = _spec_to_box(
-            self._env.observation_spec().values(),
-            np.float64
+            self._env.observation_spec().values(), np.float64
         )
-        
+
         self.current_state = None
 
         # set seed
-        self.seed(seed=task_kwargs.get('random', 1))
+        self.seed(seed=task_kwargs.get("random", 1))
 
     def __getattr__(self, name):
         return getattr(self._env, name)
@@ -109,7 +114,7 @@ class DMCWrapper(core.Env):
             obs = self.render(
                 height=self._height,
                 width=self._width,
-                camera_id=self._camera_id
+                camera_id=self._camera_id,
             )
             if self._channels_first:
                 obs = obs.transpose(2, 0, 1).copy()
@@ -152,7 +157,7 @@ class DMCWrapper(core.Env):
         action = self._convert_action(action)
         assert self._true_action_space.contains(action)
         reward = 0
-        extra = {'internal_state': self._env.physics.get_state().copy()}
+        extra = {"internal_state": self._env.physics.get_state().copy()}
 
         for _ in range(self._frame_skip):
             time_step = self._env.step(action)
@@ -162,7 +167,7 @@ class DMCWrapper(core.Env):
                 break
         obs = self._get_obs(time_step)
         self.current_state = _flatten_obs(time_step.observation)
-        extra['discount'] = time_step.discount
+        extra["discount"] = time_step.discount
         return obs, reward, done, extra
 
     def reset(self):
@@ -171,11 +176,9 @@ class DMCWrapper(core.Env):
         obs = self._get_obs(time_step)
         return obs
 
-    def render(self, mode='rgb_array', height=None, width=None, camera_id=0):
-        assert mode == 'rgb_array', 'only support rgb_array mode, given %s' % mode
+    def render(self, mode="rgb_array", height=None, width=None, camera_id=0):
+        assert mode == "rgb_array", "only support rgb_array mode, given %s" % mode
         height = height or self._height
         width = width or self._width
         camera_id = camera_id or self._camera_id
-        return self._env.physics.render(
-            height=height, width=width, camera_id=camera_id
-        )
+        return self._env.physics.render(height=height, width=width, camera_id=camera_id)

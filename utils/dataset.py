@@ -16,7 +16,16 @@ def get_size(data) -> int:
 # A class for storing (and retrieving batches of) data in nested dictionary format.
 class Dataset(FrozenDict):
     @classmethod
-    def create(cls, observations, actions, rewards, masks, next_observations, freeze=True, **extra_fields):
+    def create(
+        cls,
+        observations,
+        actions,
+        rewards,
+        masks,
+        next_observations,
+        freeze=True,
+        **extra_fields,
+    ):
         data = {
             "observations": observations,
             "actions": actions,
@@ -57,11 +66,13 @@ class Dataset(FrozenDict):
         split = int(self.size * ratio)
         train_indx = shuffled_indicies[:split]
         valid_indx = shuffled_indicies[split:]
-        return Dataset.create(**self.get_subset(train_indx)), Dataset.create(**self.get_subset(valid_indx))
+        return Dataset.create(**self.get_subset(train_indx)), Dataset.create(
+            **self.get_subset(valid_indx)
+        )
+
 
 # Dataset where data is added to the buffer.
 class ReplayBuffer(Dataset):
-
     @classmethod
     def create(cls, transition, size: int):
         def create_buffer(example):

@@ -11,6 +11,7 @@ import time
 from collections import deque
 from typing import Optional
 
+
 class EpisodeMonitor(gym.ActionWrapper):
     """A class that computes episode returns and lengths."""
 
@@ -49,6 +50,7 @@ class EpisodeMonitor(gym.ActionWrapper):
         self._reset_stats()
         return self.env.reset(**kwargs)
 
+
 class RewardOverride(gym.ActionWrapper):
     def __init__(self, env: gym.Env):
         super().__init__(env)
@@ -61,9 +63,11 @@ class RewardOverride(gym.ActionWrapper):
 
     def reset(self, **kwargs) -> np.ndarray:
         return self.env.reset(**kwargs)
-    
+
+
 class NormalizeActionWrapper(gym.Wrapper):
     """A wrapper that maps actions from [-1,1] to [low, hgih]."""
+
     def __init__(self, env):
         super().__init__(env)
         self.active = type(env.action_space) == gym.spaces.Box
@@ -72,8 +76,15 @@ class NormalizeActionWrapper(gym.Wrapper):
             self.action_high = env.action_space.high
             self.action_scale = (self.action_high - self.action_low) * 0.5
             self.action_mid = (self.action_high + self.action_low) * 0.5
-            if not np.isclose(self.action_low[0], 1) or not np.isclose(self.action_high[0],1):
-                print("Normalizing Action Space from [{}, {}] to [-1, 1]".format(self.action_low[0], self.action_high[0]))
+            if not np.isclose(self.action_low[0], 1) or not np.isclose(
+                self.action_high[0], 1
+            ):
+                print(
+                    "Normalizing Action Space from [{}, {}] to [-1, 1]".format(
+                        self.action_low[0], self.action_high[0]
+                    )
+                )
+
     def step(self, action):
         if self.active:
             action = np.clip(action, -1, 1)
@@ -87,6 +98,7 @@ class NormalizeActionWrapper(gym.Wrapper):
 
 def stack_obs(obs):
     return np.stack(obs, axis=0)
+
 
 def space_stack(space: gym.Space, repeat: int):
     if isinstance(space, gym.spaces.Box):
@@ -103,7 +115,8 @@ def space_stack(space: gym.Space, repeat: int):
         )
     else:
         raise TypeError()
-    
+
+
 class ChunkingWrapper(gym.Wrapper):
     """
     Enables observation histories and receding horizon control.
@@ -113,7 +126,12 @@ class ChunkingWrapper(gym.Wrapper):
     Executes act_exec_horizon actions in the environment.
     """
 
-    def __init__(self, env: gym.Env, obs_horizon: int, act_exec_horizon: Optional[int] = None):
+    def __init__(
+        self,
+        env: gym.Env,
+        obs_horizon: int,
+        act_exec_horizon: Optional[int] = None,
+    ):
         super().__init__(env)
         self.env = env
         self.obs_horizon = obs_horizon

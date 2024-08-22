@@ -4,7 +4,7 @@ Run setup_wandb(hyperparam_dict, ...) to initialize wandb logging.
 See default_wandb_config() for a list of available configurations.
 
 We recommend the following workflow (see examples/mujoco/d4rl_iql.py for a more full example):
-    
+
     from ml_collections import config_flags
     from jaxrl_m.wandb import setup_wandb, default_wandb_config
     import wandb
@@ -24,12 +24,13 @@ We recommend the following workflow (see examples/mujoco/d4rl_iql.py for a more 
 With the following setup, you may set wandb configurations from the command line, e.g.
     python main.py --wandb.project=my_project --wandb.group=my_group --wandb.offline
 """
+
 import wandb
 
 import tempfile
 import absl.flags as flags
 import ml_collections
-from  ml_collections.config_dict import FieldReference
+from ml_collections.config_dict import FieldReference
 import datetime
 import wandb
 import time
@@ -49,15 +50,21 @@ def default_wandb_config():
     config = ml_collections.ConfigDict()
     config.offline = False  # Syncs online or not?
     config.project = "rlbase_default"  # WandB Project Name
-    config.entity = FieldReference(None, field_type=str)  # Which entity to log as (default: your own user)
+    config.entity = FieldReference(
+        None, field_type=str
+    )  # Which entity to log as (default: your own user)
 
     group_name = FieldReference(None, field_type=str)  # Group name
-    config.exp_prefix = group_name  # Group name (deprecated, but kept for backwards compatibility)
+    config.exp_prefix = (
+        group_name  # Group name (deprecated, but kept for backwards compatibility)
+    )
     config.group = group_name  # Group name
 
-    experiment_name = FieldReference(None, field_type=str) # Experiment name
+    experiment_name = FieldReference(None, field_type=str)  # Experiment name
     config.name = experiment_name  # Run name (will be formatted with flags / variant)
-    config.exp_descriptor = experiment_name  # Run name (deprecated, but kept for backwards compatibility)
+    config.exp_descriptor = (
+        experiment_name  # Run name (deprecated, but kept for backwards compatibility)
+    )
 
     config.unique_identifier = ""  # Unique identifier for run (will be automatically generated unless provided)
     config.random_delay = 0  # Random delay for wandb.init (in seconds)
@@ -103,7 +110,7 @@ def setup_wandb(
         unique_identifier = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_identifier += f"_{np.random.randint(0, 1000000):06d}"
         flag_dict = get_flag_dict()
-        if 'seed' in flag_dict:
+        if "seed" in flag_dict:
             unique_identifier += f"_{flag_dict['seed']:02d}"
 
     if name is not None:

@@ -33,8 +33,13 @@ def add_to(dict_of_lists, single_dict):
         dict_of_lists[k].append(v)
 
 
-def evaluate(policy_fn, env: gym.Env, num_episodes: int, record_video : bool = False, 
-             return_trajectories=False):
+def evaluate(
+    policy_fn,
+    env: gym.Env,
+    num_episodes: int,
+    record_video: bool = False,
+    return_trajectories=False,
+):
     """
     Evaluates a policy in an environment by running it for some number of episodes,
     and returns average statistics for metrics.
@@ -51,18 +56,20 @@ def evaluate(policy_fn, env: gym.Env, num_episodes: int, record_video : bool = F
         ob_list.append(observation)
         while not done:
             if type(observation) == dict:
-                obgoal = np.concatenate([observation['observation'], observation['goal']])
+                obgoal = np.concatenate(
+                    [observation["observation"], observation["goal"]]
+                )
                 action = policy_fn(obgoal)
             else:
                 action = policy_fn(observation)
             action = np.array(action)
             next_observation, r, done, info = env.step(action)
-            mask = float(not done or 'TimeLimit.truncated' in info)
+            mask = float(not done or "TimeLimit.truncated" in info)
             add_to(stats, flatten(info))
 
             if type(observation) is dict:
-                obs_pure = observation['observation']
-                next_obs_pure = next_observation['observation']
+                obs_pure = observation["observation"]
+                next_obs_pure = next_observation["observation"]
             else:
                 obs_pure = observation
                 next_obs_pure = next_observation
@@ -89,15 +96,15 @@ def evaluate(policy_fn, env: gym.Env, num_episodes: int, record_video : bool = F
     for k, v in stats.items():
         stats[k] = np.mean(v)
 
-    if 'episode.return' in stats:
-        print("Episode Return Mean is ", stats['episode.return'])
+    if "episode.return" in stats:
+        print("Episode Return Mean is ", stats["episode.return"])
 
     if record_video:
         stacked = np.stack(frames)
         stacked = stacked.transpose(0, 3, 1, 2)
         while stacked.shape[2] > 160:
             stacked = stacked[:, :, ::2, ::2]
-        stats['video'] = wandb.Video(stacked, fps=60)
+        stats["video"] = wandb.Video(stacked, fps=60)
 
     if return_trajectories:
         return stats, trajectories
